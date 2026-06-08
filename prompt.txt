@@ -1,0 +1,433 @@
+Create a complete production-ready Cricket Tournament Management Platform using Node.js for the backend and React.js (Next.js preferred) for the frontend.
+
+## Project Name
+
+Cricket Tournament Hub
+
+## Objective
+
+Build a professional cricket tournament website where teams can register for tournaments, add all 11 players, manage player statistics, and allow visitors to view player and team histories.
+
+## Tech Stack
+
+### Backend
+
+* Node.js
+* Express.js
+* MongoDB with Mongoose
+* JWT Authentication
+* Multer for image uploads
+* Cloudinary/AWS S3 for storing profile pictures
+* REST API architecture
+* Swagger API documentation
+
+### Frontend
+
+* Next.js (latest version)
+* Tailwind CSS
+* Axios
+* React Query
+* Redux Toolkit (if needed)
+* Responsive Design (Mobile + Desktop)
+
+### Admin Panel
+
+* Tournament Management
+* Team Approval/Rejection
+* Player Verification
+* Match Scheduling
+* Score Entry
+* Statistics Management
+* Dashboard Analytics
+
+---
+
+# User Roles
+
+## 1. Admin
+
+Can:
+
+* Create tournaments
+* Approve team registrations
+* Add matches
+* Enter match scores
+* Manage teams
+* Manage players
+* View reports
+
+## 2. Team Manager
+
+Can:
+
+* Register team
+* Add/Edit players
+* Upload player photos
+* View team statistics
+* Register for tournaments
+
+## 3. Public Visitor
+
+Can:
+
+* View tournaments
+* View teams
+* View player profiles
+* View leaderboards
+* View match schedules
+* View points table
+
+---
+
+# Main Pages
+
+## Home Page
+
+Modern cricket-themed homepage containing:
+
+### Hero Section
+
+* Tournament banner
+* Register Team button
+* Upcoming Tournament button
+
+### Features Section
+
+* Team Registration
+* Live Scores
+* Player Statistics
+* Tournament Rankings
+
+### Latest Matches
+
+### Top Players
+
+### Tournament Sponsors
+
+### Testimonials
+
+### Footer
+
+* About
+* Contact
+* Social Links
+
+---
+
+# Tournament Registration Page
+
+Fields:
+
+Team Details:
+
+* Team Name
+* Captain Name
+* Mobile Number
+* Email
+* City
+* Team Logo
+
+Tournament Details:
+
+* Tournament Selection
+
+Player Details (11 Required)
+
+For each player:
+
+* Full Name
+* Date of Birth
+* Batting Style
+* Bowling Style
+* Role
+
+  * Batsman
+  * Bowler
+  * All-Rounder
+  * Wicket Keeper
+* Jersey Number
+* Profile Picture
+
+Validation:
+
+* Exactly 11 players required
+* Captain must be one of the players
+
+After registration:
+
+* Status = Pending Approval
+
+---
+
+# Team Page
+
+Display:
+
+* Team Logo
+* Team Name
+* Captain
+* Total Matches
+* Wins
+* Losses
+* Win Percentage
+
+Players Grid
+
+Clicking player opens profile page.
+
+---
+
+# Player Profile Page
+
+Display:
+
+Player Information:
+
+* Profile Picture
+* Name
+* Age
+* Team
+* Role
+
+Career Statistics:
+
+Batting:
+
+* Matches
+* Innings
+* Runs
+* Highest Score
+* Average
+* Strike Rate
+* 50s
+* 100s
+* Fours
+* Sixes
+
+Bowling:
+
+* Wickets
+* Economy
+* Bowling Average
+* Best Bowling Figures
+
+Fielding:
+
+* Catches
+* Run Outs
+* Stumpings
+
+Recent Match Performance
+
+Career Graphs:
+
+* Runs Progression
+* Wickets Progression
+
+---
+
+# Match Management
+
+Admin can:
+
+Create Match:
+
+* Team A
+* Team B
+* Date
+* Ground
+* Overs
+
+Scorecard:
+
+Batting:
+
+* Runs
+* Balls
+* Fours
+* Sixes
+* Strike Rate
+
+Bowling:
+
+* Overs
+* Maidens
+* Runs
+* Wickets
+* Economy
+
+Automatically update player statistics after match completion.
+
+---
+
+# Tournament Page
+
+Display:
+
+* Tournament Banner
+* Start Date
+* End Date
+* Registration Fee
+* Prize Pool
+
+Sections:
+
+### Teams
+
+### Fixtures
+
+### Results
+
+### Points Table
+
+Columns:
+
+* Team
+* Matches
+* Won
+* Lost
+* Points
+* NRR
+
+### Top Run Scorers
+
+### Top Wicket Takers
+
+---
+
+# Contact Us Page
+
+Fields:
+
+* Name
+* Email
+* Phone
+* Subject
+* Message
+
+Store submissions in database.
+
+---
+
+# About Us Page
+
+Professional cricket tournament information.
+
+---
+
+# Database Design
+
+Collections:
+
+Users
+
+* role
+* name
+* email
+* password
+
+Teams
+
+* teamName
+* captain
+* logo
+* city
+* players[]
+
+Players
+
+* profileImage
+* name
+* role
+* battingStyle
+* bowlingStyle
+* statistics
+
+Tournaments
+
+* title
+* description
+* registrationFee
+* startDate
+* endDate
+
+Matches
+
+* tournamentId
+* teamA
+* teamB
+* scorecard
+
+ContactMessages
+
+---
+
+# Dashboard Analytics
+
+Admin Dashboard:
+
+Cards:
+
+* Total Teams
+* Total Players
+* Total Matches
+* Total Tournaments
+
+Charts:
+
+* Tournament Registrations
+* Runs Statistics
+* Wickets Statistics
+
+---
+
+# SEO Requirements
+
+* Dynamic Meta Tags
+* Sitemap
+* Robots.txt
+* Open Graph Support
+
+---
+
+# Security
+
+* JWT Authentication
+* Password Hashing (bcrypt)
+* Rate Limiting
+* Helmet
+* Input Validation
+* Role-Based Access Control
+
+---
+
+# Additional Features
+
+* Live Score Module
+* Match Commentary
+* Search Players
+* Search Teams
+* Player Rankings
+* Team Rankings
+* Dark Mode
+* Notification System
+* Email Notifications
+* Mobile Responsive Design
+
+---
+
+# Deliverables
+
+Generate:
+
+1. Complete Folder Structure
+2. Backend APIs
+3. MongoDB Schemas
+4. Authentication System
+5. Admin Dashboard
+6. React Frontend Pages
+7. API Integration
+8. Database Relationships
+9. Deployment Guide
+
+The code should be production-ready, scalable, properly structured, follow clean architecture principles, and include comments where necessary. Use modern UI/UX similar to professional cricket platforms like Cricbuzz and ESPN Cricinfo.

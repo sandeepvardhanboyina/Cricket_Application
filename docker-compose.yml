@@ -1,0 +1,58 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: cricket-mongo
+    restart: unless-stopped
+    command: ["mongod", "--quiet", "--logpath", "/dev/null"]
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cricket-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_HOST_PORT:-5000}:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://mongo:27017/cricket-tournament-hub
+      JWT_SECRET: cricket-hub-docker-secret-change-in-production
+      JWT_EXPIRE: 7d
+      FRONTEND_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      API_URL: ${API_PUBLIC_URL:-http://localhost:5000}
+      AUTO_APPROVE_TEAMS: ${AUTO_APPROVE_TEAMS:-false}
+      CLOUDINARY_CLOUD_NAME: your-cloud-name
+      CLOUDINARY_API_KEY: your-api-key
+      CLOUDINARY_API_SECRET: your-api-secret
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+        NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-Cricket Tournament Hub}
+    container_name: cricket-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
