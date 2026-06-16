@@ -1,18 +1,25 @@
 'use client';
 
 import { use } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { teamsAPI } from '@/lib/api';
+import { playersAPI, teamsAPI } from '@/lib/api';
 import { Team, Player } from '@/types';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { PlayerAvailabilityBadge } from '@/components/ui/PlayerAvailabilityBadge';
 import { PageLoading } from '@/components/ui/Loading';
+import { useAppSelector } from '@/store/hooks';
+import toast from 'react-hot-toast';
 import { MapPin, Trophy, Users } from 'lucide-react';
+import { UserX } from 'lucide-react';
 
 export default function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const queryClient = useQueryClient();
+  const { user, isAuthenticated } = useAppSelector((state) => state.auth);
 
   const { data, isLoading } = useQuery({
     queryKey: ['team', id],
@@ -24,6 +31,23 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
 
   const team = data;
   const players = (team.players || []) as Player[];
+  const canManageRoster =
+    isAuthenticated &&
+    (user?.role === 'admin' ||
+      (user?.role === 'team_manager' &&
+        typeof user.team === 'object' &&
+        user.team?._id === team._id));
+
+  const handleRemovePlayer = async (playerId: string) => {
+    try {
+      await playersAPI.removeFromTeam(playerId);
+      toast.success('Player removed from team');
+      queryClient.invalidateQueries({ queryKey: ['team', id] });
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to remove player');
+    }
+  };
 
   return (
     <div className="page-container">
@@ -71,19 +95,33 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {players.map((player) => (
-          <Link key={player._id} href={`/players/${player._id}`}>
-            <Card hover>
-              <CardBody className="text-center p-4">
+          <Card key={player._id} hover>
+            <CardBody className="text-center p-4">
+              <Link href={`/players/${player._id}`} className="block">
                 <Avatar src={player.profileImage} name={player.name} size="lg" className="mx-auto mb-3" />
                 <h3 className="font-semibold text-sm text-gray-900 dark:text-white">{player.name}</h3>
                 <p className="text-xs text-gray-500">{player.role}</p>
+                <div className="mt-2 flex justify-center">
+                  <PlayerAvailabilityBadge status={player.availabilityStatus} />
+                </div>
                 <span className="inline-block mt-1 text-xs bg-cricket-100 dark:bg-cricket-900/30 text-cricket-700 dark:text-cricket-300 px-2 py-0.5 rounded-full">
                   #{player.jerseyNumber}
                 </span>
                 {player.isCaptain && <Badge variant="warning" className="mt-1">Captain</Badge>}
-              </CardBody>
-            </Card>
-          </Link>
+              </Link>
+              {canManageRoster && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  className="mt-4 w-full"
+                  onClick={() => handleRemovePlayer(player._id)}
+                >
+                  <UserX className="w-4 h-4" />
+                  Remove from Team
+                </Button>
+              )}
+            </CardBody>
+          </Card>
         ))}
       </div>
     </div>

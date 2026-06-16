@@ -7,15 +7,31 @@ const ContactMessage = require('../models/ContactMessage');
 
 exports.getDashboardStats = async (req, res, next) => {
   try {
-    const [totalTeams, totalPlayers, totalMatches, totalTournaments, pendingTeams, unreadMessages] =
-      await Promise.all([
-        Team.countDocuments({ status: 'approved' }),
-        Player.countDocuments(),
-        Match.countDocuments(),
-        Tournament.countDocuments(),
-        Team.countDocuments({ status: 'pending' }),
-        ContactMessage.countDocuments({ isRead: false }),
-      ]);
+    const [
+      totalTeams,
+      totalPlayers,
+      totalMatches,
+      totalTournaments,
+      pendingTeams,
+      unreadMessages,
+      availablePlayers,
+      injuredPlayers,
+      suspendedPlayers,
+      unavailablePlayers,
+    ] = await Promise.all([
+      Team.countDocuments({ status: 'approved' }),
+      Player.countDocuments(),
+      Match.countDocuments(),
+      Tournament.countDocuments(),
+      Team.countDocuments({ status: 'pending' }),
+      ContactMessage.countDocuments({ isRead: false }),
+      Player.countDocuments({
+        $or: [{ availabilityStatus: 'AVAILABLE' }, { availabilityStatus: { $exists: false } }],
+      }),
+      Player.countDocuments({ availabilityStatus: 'INJURED' }),
+      Player.countDocuments({ availabilityStatus: 'SUSPENDED' }),
+      Player.countDocuments({ availabilityStatus: 'UNAVAILABLE' }),
+    ]);
 
     res.json({
       success: true,
@@ -26,6 +42,10 @@ exports.getDashboardStats = async (req, res, next) => {
         totalTournaments,
         pendingTeams,
         unreadMessages,
+        availablePlayers,
+        injuredPlayers,
+        suspendedPlayers,
+        unavailablePlayers,
       },
     });
   } catch (error) {

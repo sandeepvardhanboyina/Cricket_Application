@@ -10,6 +10,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Input, Select } from '@/components/ui/Input';
 import { Loading } from '@/components/ui/Loading';
+import { TeamFormIndicator } from '@/components/teams/TeamFormIndicator';
 import { Search, MapPin, Trophy } from 'lucide-react';
 
 export default function TeamsPage() {
@@ -61,11 +62,11 @@ export default function TeamsPage() {
       ) : teams.length === 0 ? (
         <p className="text-center text-gray-500 py-16">No teams found.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
           {teams.map((team) => (
-            <Link key={team._id} href={`/teams/${team._id}`}>
-              <Card hover>
-                <CardBody>
+            <Link key={team._id} href={`/teams/${team._id}`} className="h-full">
+              <Card hover className="h-full">
+                <CardBody className="flex h-full flex-col">
                   <div className="flex items-center gap-4 mb-4">
                     <Avatar src={team.logo} name={team.teamName} size="lg" />
                     <div className="flex-1 min-w-0">
@@ -99,7 +100,11 @@ export default function TeamsPage() {
                     </div>
                   </div>
 
-                  <p className="text-sm text-gray-500 mt-3 flex items-center gap-1">
+                  <div className="mt-4">
+                    <TeamFormIndicator form={team.recentForm} />
+                  </div>
+
+                  <p className="mt-auto text-sm text-gray-500 pt-4 flex items-center gap-1">
                     <Trophy className="w-3 h-3" /> Captain: {team.captain}
                   </p>
                 </CardBody>

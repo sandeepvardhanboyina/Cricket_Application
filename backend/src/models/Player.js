@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { PLAYER_AVAILABILITY_STATUSES } = require('../utils/playerAvailability');
 
 const statisticsSchema = new mongoose.Schema(
   {
@@ -76,6 +77,11 @@ const playerSchema = new mongoose.Schema(
       required: true,
       min: 1,
       max: 99,
+    },
+    availabilityStatus: {
+      type: String,
+      enum: PLAYER_AVAILABILITY_STATUSES,
+      default: 'AVAILABLE',
     },
     profileImage: {
       type: String,

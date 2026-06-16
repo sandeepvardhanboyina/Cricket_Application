@@ -5,6 +5,7 @@ const Tournament = require('../models/Tournament');
 const Notification = require('../models/Notification');
 const { uploadToCloudinary } = require('../utils/uploadImage');
 const { sendEmail } = require('../utils/email');
+const { buildRecentFormMap } = require('../utils/recentForm');
 
 exports.getTeams = async (req, res, next) => {
   try {
@@ -16,16 +17,25 @@ exports.getTeams = async (req, res, next) => {
     else query.status = { $in: ['approved', 'pending'] };
 
     const teams = await Team.find(query)
-      .populate('players', 'name role profileImage jerseyNumber isCaptain')
+      .populate('players', 'name role profileImage jerseyNumber isCaptain availabilityStatus')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
+
+    const recentFormMap = await buildRecentFormMap(teams.map((team) => team._id));
+    const teamsWithForm = teams.map((team) => {
+      const plainTeam = team.toObject();
+      return {
+        ...plainTeam,
+        recentForm: recentFormMap.get(team._id.toString()) || [],
+      };
+    });
 
     const total = await Team.countDocuments(query);
 
     res.json({
       success: true,
-      data: teams,
+      data: teamsWithForm,
       pagination: { page: parseInt(page), limit: parseInt(limit), total },
     });
   } catch (error) {
@@ -35,9 +45,20 @@ exports.getTeams = async (req, res, next) => {
 
 exports.getTeam = async (req, res, next) => {
   try {
-    const team = await Team.findById(req.params.id).populate('players').populate('manager', 'name email');
+    const team = await Team.findById(req.params.id)
+      .populate('players', 'name role profileImage jerseyNumber isCaptain availabilityStatus battingStyle bowlingStyle team')
+      .populate('manager', 'name email');
     if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
-    res.json({ success: true, data: team });
+
+    const recentFormMap = await buildRecentFormMap([team._id]);
+
+    res.json({
+      success: true,
+      data: {
+        ...team.toObject(),
+        recentForm: recentFormMap.get(team._id.toString()) || [],
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -105,6 +126,7 @@ exports.registerTeam = async (req, res, next) => {
         battingStyle: p.battingStyle,
         bowlingStyle: p.bowlingStyle,
         jerseyNumber: p.jerseyNumber,
+        availabilityStatus: 'AVAILABLE',
         profileImage,
         team: team._id,
         isCaptain: p.name.toLowerCase() === captain.toLowerCase() || p.isCaptain,

@@ -9,6 +9,7 @@ const {
   addPlayer,
   updatePlayer,
   verifyPlayer,
+  deletePlayer,
   getTopBatsmen,
   getTopBowlers,
   getPlayerRankings,
@@ -29,6 +30,7 @@ router.post('/', protect, authorize('admin', 'team_manager'), upload.single('pro
 router.put('/:id', protect, authorize('admin', 'team_manager'), upload.single('profileImage'), updatePlayer);
 router.put('/:id/assign-team', protect, authorize('admin', 'team_manager'), assignToTeam);
 router.put('/:id/remove-team', protect, authorize('admin', 'team_manager'), removeFromTeam);
+router.delete('/:id', protect, authorize('admin', 'team_manager'), deletePlayer);
 router.put('/:id/verify', protect, authorize('admin'), verifyPlayer);
 
 module.exports = router;

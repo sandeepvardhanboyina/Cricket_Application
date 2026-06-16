@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { User } from '@/types';
+import { clearAuthStorage } from '@/lib/auth';
 
 interface AuthState {
   user: User | null;
@@ -26,15 +27,14 @@ const authSlice = createSlice({
       if (typeof window !== 'undefined') {
         localStorage.setItem('user', JSON.stringify(action.payload));
         if (action.payload.token) localStorage.setItem('token', action.payload.token);
+        if (action.payload.role) localStorage.setItem('role', action.payload.role);
+        if (action.payload.role === 'admin') localStorage.setItem('admin', 'true');
       }
     },
     logout: (state) => {
       state.user = null;
       state.isAuthenticated = false;
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-      }
+      clearAuthStorage();
     },
   },
 });

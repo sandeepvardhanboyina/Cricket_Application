@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Input';
 import { PageLoading } from '@/components/ui/Loading';
 import { Avatar } from '@/components/ui/Avatar';
+import { PlayerAvailabilityBadge } from '@/components/ui/PlayerAvailabilityBadge';
+import { isBlockedAvailabilityStatus } from '@/lib/playerAvailability';
 import toast from 'react-hot-toast';
 
 export default function AdminPlayersPage() {
@@ -106,12 +108,13 @@ export default function AdminPlayersPage() {
                         ? ` | ${player.team.teamName}`
                         : ''}
                     </p>
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex flex-wrap gap-2 mt-2">
                       {!player.isVerified && <Badge variant="warning">Unverified</Badge>}
                       {!player.team && <Badge variant="info">No Team</Badge>}
                       {player.registrationType === 'individual' && (
                         <Badge variant="default">Individual</Badge>
                       )}
+                      <PlayerAvailabilityBadge status={player.availabilityStatus} />
                     </div>
                   </div>
                 </div>
@@ -124,6 +127,7 @@ export default function AdminPlayersPage() {
                   <div className="flex items-end gap-2 w-full sm:w-auto">
                     <Select
                       value={assigning[player._id] || ''}
+                      disabled={isBlockedAvailabilityStatus(player.availabilityStatus)}
                       onChange={(e) =>
                         setAssigning((prev) => ({ ...prev, [player._id]: e.target.value }))
                       }
@@ -133,7 +137,16 @@ export default function AdminPlayersPage() {
                       ]}
                       className="min-w-[180px]"
                     />
-                    <Button size="sm" onClick={() => handleAssign(player._id)}>
+                    <Button
+                      size="sm"
+                      onClick={() => handleAssign(player._id)}
+                      disabled={isBlockedAvailabilityStatus(player.availabilityStatus)}
+                      title={
+                        isBlockedAvailabilityStatus(player.availabilityStatus)
+                          ? 'Unavailable, injured, and suspended players cannot be assigned'
+                          : undefined
+                      }
+                    >
                       Assign
                     </Button>
                   </div>

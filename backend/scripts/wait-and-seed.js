@@ -1,6 +1,8 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const { execSync } = require('child_process');
+const { migratePlayerAvailability } = require('./migrate-player-availability');
+const { migrateMatchWeather } = require('./migrate-match-weather');
 
 const MAX_RETRIES = 30;
 const RETRY_DELAY_MS = 2000;
@@ -28,6 +30,8 @@ async function main() {
 
   const User = require('../src/models/User');
   const userCount = await User.countDocuments();
+  await migratePlayerAvailability();
+  await migrateMatchWeather();
 
   await mongoose.disconnect();
 

@@ -8,7 +8,18 @@ import { StatCard } from '@/components/ui/StatCard';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PageLoading } from '@/components/ui/Loading';
-import { Users, UserCheck, Calendar, Trophy, AlertCircle, Mail } from 'lucide-react';
+import {
+  Users,
+  UserCheck,
+  Calendar,
+  Trophy,
+  AlertCircle,
+  Mail,
+  CheckCircle2,
+  AlertTriangle,
+  Ban,
+  UserX,
+} from 'lucide-react';
 
 export default function AdminDashboard() {
   const { data, isLoading } = useQuery({
@@ -29,6 +40,33 @@ export default function AdminDashboard() {
         <StatCard title="Total Players" value={stats.totalPlayers} icon={UserCheck} color="bg-blue-600" />
         <StatCard title="Total Matches" value={stats.totalMatches} icon={Calendar} color="bg-purple-600" />
         <StatCard title="Tournaments" value={stats.totalTournaments} icon={Trophy} color="bg-orange-600" />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+        <StatCard
+          title="Available Players"
+          value={stats.availablePlayers}
+          icon={CheckCircle2}
+          color="bg-green-600"
+        />
+        <StatCard
+          title="Injured Players"
+          value={stats.injuredPlayers}
+          icon={AlertTriangle}
+          color="bg-red-600"
+        />
+        <StatCard
+          title="Suspended Players"
+          value={stats.suspendedPlayers}
+          icon={Ban}
+          color="bg-gray-700"
+        />
+        <StatCard
+          title="Unavailable Players"
+          value={stats.unavailablePlayers}
+          icon={UserX}
+          color="bg-blue-600"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -27,6 +27,95 @@ const bowlingEntrySchema = new mongoose.Schema(
   { _id: false }
 );
 
+const battingStatsSchema = new mongoose.Schema(
+  {
+    player: { type: mongoose.Schema.Types.ObjectId, ref: 'Player', required: true },
+    playerName: { type: String, default: '' },
+    runs: { type: Number, default: 0 },
+    balls: { type: Number, default: 0 },
+    fours: { type: Number, default: 0 },
+    sixes: { type: Number, default: 0 },
+    strikeRate: { type: Number, default: 0 },
+    dismissal: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+const bowlingStatsSchema = new mongoose.Schema(
+  {
+    player: { type: mongoose.Schema.Types.ObjectId, ref: 'Player', required: true },
+    playerName: { type: String, default: '' },
+    overs: { type: Number, default: 0 },
+    maidens: { type: Number, default: 0 },
+    runs: { type: Number, default: 0 },
+    wickets: { type: Number, default: 0 },
+    economy: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const fallOfWicketsSchema = new mongoose.Schema(
+  {
+    wicket: { type: Number, required: true },
+    score: { type: Number, required: true },
+    over: { type: String, default: '' },
+    batsman: { type: String, default: '' },
+    wicketText: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+const partnershipSchema = new mongoose.Schema(
+  {
+    wicket: { type: Number, default: null },
+    players: [{ type: String }],
+    runs: { type: Number, default: 0 },
+    balls: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const timelineEventSchema = new mongoose.Schema(
+  {
+    over: { type: String, default: '' },
+    title: { type: String, default: '' },
+    description: { type: String, default: '' },
+    team: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
+    player: { type: mongoose.Schema.Types.ObjectId, ref: 'Player' },
+    type: { type: String, default: 'event' },
+  },
+  { _id: false }
+);
+
+const scorecardInningsSchema = new mongoose.Schema(
+  {
+    team: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', required: true },
+    totalRuns: { type: Number, default: 0 },
+    totalWickets: { type: Number, default: 0 },
+    totalOvers: { type: Number, default: 0 },
+    extras: { type: Number, default: 0 },
+    battingStats: [battingStatsSchema],
+    bowlingStats: [bowlingStatsSchema],
+    fallOfWickets: [fallOfWicketsSchema],
+    partnerships: [partnershipSchema],
+    partnershipSummary: [{ type: String }],
+  },
+  { _id: false }
+);
+
+const scorecardSchema = new mongoose.Schema(
+  {
+    playerOfMatch: { type: mongoose.Schema.Types.ObjectId, ref: 'Player' },
+    toss: {
+      winner: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
+      decision: { type: String, enum: ['bat', 'bowl'], default: 'bat' },
+    },
+    innings: [scorecardInningsSchema],
+    timelineEvents: [timelineEventSchema],
+  },
+  { _id: false }
+);
+
 const inningsSchema = new mongoose.Schema(
   {
     team: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', required: true },
@@ -50,6 +139,17 @@ const commentarySchema = new mongoose.Schema(
     timestamp: { type: Date, default: Date.now },
   },
   { _id: true }
+);
+
+const weatherSchema = new mongoose.Schema(
+  {
+    temperature: { type: Number, default: null },
+    condition: { type: String, default: '' },
+    rainChance: { type: Number, default: null },
+    windSpeed: { type: Number, default: null },
+    icon: { type: String, default: '' },
+  },
+  { _id: false }
 );
 
 const matchSchema = new mongoose.Schema(
@@ -87,6 +187,10 @@ const matchSchema = new mongoose.Schema(
       default: 'scheduled',
     },
     innings: [inningsSchema],
+    scorecard: {
+      type: scorecardSchema,
+      default: () => ({}),
+    },
     result: {
       winner: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
       margin: String,
@@ -97,6 +201,10 @@ const matchSchema = new mongoose.Schema(
       currentOver: { type: Number, default: 0 },
       currentBall: { type: Number, default: 0 },
       lastUpdated: Date,
+    },
+    weather: {
+      type: weatherSchema,
+      default: () => ({}),
     },
     commentary: [commentarySchema],
     createdBy: {

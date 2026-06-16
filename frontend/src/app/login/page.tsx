@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setUser } from '@/store/authSlice';
 import { authAPI } from '@/lib/api';
 import { Input } from '@/components/ui/Input';
@@ -16,8 +16,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { isAuthenticated, user } = useAppSelector((s) => s.auth);
   const dispatch = useAppDispatch();
   const router = useRouter();
+
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'admin') {
+      router.replace('/admin');
+    }
+  }, [isAuthenticated, user?.role, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

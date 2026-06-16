@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearAuthStorage } from '@/lib/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -19,8 +20,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      clearAuthStorage();
     }
     return Promise.reject(error);
   }
@@ -54,8 +54,11 @@ export const playersAPI = {
   getUnassigned: () => api.get('/players/unassigned'),
   register: (data: FormData) =>
     api.post('/players/register', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id: string, data: FormData) =>
+    api.put(`/players/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
   assignToTeam: (id: string, teamId: string) => api.put(`/players/${id}/assign-team`, { teamId }),
   removeFromTeam: (id: string) => api.put(`/players/${id}/remove-team`),
+  delete: (id: string) => api.delete(`/players/${id}`),
   getTopBatsmen: (limit = 10) => api.get('/players/top/batsmen', { params: { limit } }),
   getTopBowlers: (limit = 10) => api.get('/players/top/bowlers', { params: { limit } }),
   getRankings: (type = 'batting') => api.get('/players/rankings', { params: { type } }),
@@ -80,6 +83,7 @@ export const tournamentsAPI = {
 export const matchesAPI = {
   getAll: (params?: Record<string, string>) => api.get('/matches', { params }),
   getById: (id: string) => api.get(`/matches/${id}`),
+  getScorecard: (id: string) => api.get(`/matches/${id}/scorecard`),
   getLatest: () => api.get('/matches/latest'),
   create: (data: Record<string, unknown>) => api.post('/matches', data),
   updateScorecard: (id: string, data: Record<string, unknown>) =>

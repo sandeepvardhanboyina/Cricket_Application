@@ -1,16 +1,32 @@
 const Player = require('../models/Player');
 const Team = require('../models/Team');
 const { uploadToCloudinary } = require('../utils/uploadImage');
+const {
+  PLAYER_AVAILABILITY_STATUSES,
+  normalizeAvailabilityStatus,
+  isBlockedAvailabilityStatus,
+  isValidAvailabilityStatus,
+} = require('../utils/playerAvailability');
 
 exports.getPlayers = async (req, res, next) => {
   try {
-    const { search, role, team, unassigned, page = 1, limit = 20 } = req.query;
+    const { search, role, team, unassigned, availabilityStatus, page = 1, limit = 20 } =
+      req.query;
     const query = {};
 
     if (search) query.name = { $regex: search, $options: 'i' };
     if (role) query.role = role;
     if (team) query.team = team;
     if (unassigned === 'true') query.team = null;
+    if (availabilityStatus && normalizeAvailabilityStatus(availabilityStatus) !== 'ALL') {
+      const normalized = normalizeAvailabilityStatus(availabilityStatus);
+      if (!isValidAvailabilityStatus(normalized)) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'Invalid availability status filter' });
+      }
+      query.availabilityStatus = normalized;
+    }
 
     const players = await Player.find(query)
       .populate('team', 'teamName logo')
@@ -46,7 +62,20 @@ exports.getPlayer = async (req, res, next) => {
 
 exports.registerPlayer = async (req, res, next) => {
   try {
-    const { name, dateOfBirth, role, battingStyle, bowlingStyle, jerseyNumber } = req.body;
+    const {
+      name,
+      dateOfBirth,
+      role,
+      battingStyle,
+      bowlingStyle,
+      jerseyNumber,
+      availabilityStatus,
+    } = req.body;
+
+    const normalizedAvailability = normalizeAvailabilityStatus(availabilityStatus || 'AVAILABLE');
+    if (!isValidAvailabilityStatus(normalizedAvailability)) {
+      return res.status(400).json({ success: false, message: 'Invalid availability status' });
+    }
 
     let profileImage = '';
     if (req.file) {
@@ -60,6 +89,7 @@ exports.registerPlayer = async (req, res, next) => {
       battingStyle,
       bowlingStyle,
       jerseyNumber,
+      availabilityStatus: normalizedAvailability,
       profileImage,
       team: null,
       registrationType: 'individual',
@@ -80,7 +110,9 @@ exports.getUnassignedPlayers = async (req, res, next) => {
   try {
     const players = await Player.find({ team: null })
       .sort({ createdAt: -1 })
-      .select('name role jerseyNumber profileImage battingStyle bowlingStyle dateOfBirth isVerified registrationType');
+      .select(
+        'name role jerseyNumber profileImage battingStyle bowlingStyle dateOfBirth isVerified registrationType availabilityStatus'
+      );
 
     res.json({ success: true, data: players });
   } catch (error) {
@@ -98,6 +130,13 @@ exports.assignToTeam = async (req, res, next) => {
 
     const team = await Team.findById(teamId);
     if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
+
+    if (isBlockedAvailabilityStatus(player.availabilityStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `Player is ${player.availabilityStatus.toLowerCase()} and cannot be assigned`,
+      });
+    }
 
     if (req.user.role === 'team_manager' && team.manager?.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Not authorized to assign players to this team' });
@@ -185,12 +224,28 @@ exports.addPlayer = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Maximum 15 players allowed per team' });
     }
 
+    const requestedAvailability = normalizeAvailabilityStatus(req.body.availabilityStatus || 'AVAILABLE');
+    if (!isValidAvailabilityStatus(requestedAvailability)) {
+      return res.status(400).json({ success: false, message: 'Invalid availability status' });
+    }
+    if (isBlockedAvailabilityStatus(requestedAvailability)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Unavailable, injured, and suspended players cannot be added to a team',
+      });
+    }
+
     let profileImage = '';
     if (req.file) {
       profileImage = await uploadToCloudinary(req.file.buffer, 'player-profiles');
     }
 
-    const player = await Player.create({ ...req.body, team: team._id, profileImage });
+    const player = await Player.create({
+      ...req.body,
+      availabilityStatus: requestedAvailability,
+      team: team._id,
+      profileImage,
+    });
     team.players.push(player._id);
     await team.save();
 
@@ -216,6 +271,20 @@ exports.updatePlayer = async (req, res, next) => {
 
     const updates = { ...req.body };
     delete updates.team;
+    if (updates.availabilityStatus !== undefined) {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only admins can update player availability',
+        });
+      }
+
+      const normalizedAvailability = normalizeAvailabilityStatus(updates.availabilityStatus);
+      if (!isValidAvailabilityStatus(normalizedAvailability)) {
+        return res.status(400).json({ success: false, message: 'Invalid availability status' });
+      }
+      updates.availabilityStatus = normalizedAvailability;
+    }
     if (req.file) {
       updates.profileImage = await uploadToCloudinary(req.file.buffer, 'player-profiles');
     }
@@ -245,6 +314,49 @@ exports.verifyPlayer = async (req, res, next) => {
   }
 };
 
+exports.getAvailabilityStats = async (req, res, next) => {
+  try {
+    const availabilityCounts = await Promise.all(
+      PLAYER_AVAILABILITY_STATUSES.map(async (status) => ({
+        status,
+        count: await Player.countDocuments({ availabilityStatus: status }),
+      }))
+    );
+
+    res.json({ success: true, data: availabilityCounts });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deletePlayer = async (req, res, next) => {
+  try {
+    const player = await Player.findById(req.params.id);
+    if (!player) return res.status(404).json({ success: false, message: 'Player not found' });
+
+    if (req.user.role === 'team_manager') {
+      if (!player.team) {
+        return res.status(403).json({ success: false, message: 'Not authorized to delete unassigned players' });
+      }
+
+      const team = await Team.findById(player.team);
+      if (team?.manager?.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: 'Not authorized' });
+      }
+    }
+
+    if (player.team) {
+      await Team.findByIdAndUpdate(player.team, { $pull: { players: player._id } });
+    }
+
+    await Player.findByIdAndDelete(req.params.id);
+
+    res.json({ success: true, message: 'Player deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getTopBatsmen = async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
@@ -252,7 +364,7 @@ exports.getTopBatsmen = async (req, res, next) => {
       .sort({ 'statistics.batting.runs': -1 })
       .limit(limit)
       .populate('team', 'teamName logo')
-      .select('name profileImage role statistics team');
+      .select('name profileImage role statistics team availabilityStatus');
 
     res.json({ success: true, data: players });
   } catch (error) {
@@ -267,7 +379,7 @@ exports.getTopBowlers = async (req, res, next) => {
       .sort({ 'statistics.bowling.wickets': -1 })
       .limit(limit)
       .populate('team', 'teamName logo')
-      .select('name profileImage role statistics team');
+      .select('name profileImage role statistics team availabilityStatus');
 
     res.json({ success: true, data: players });
   } catch (error) {
@@ -285,7 +397,7 @@ exports.getPlayerRankings = async (req, res, next) => {
       .sort(sortField)
       .limit(50)
       .populate('team', 'teamName logo')
-      .select('name profileImage role statistics team');
+      .select('name profileImage role statistics team availabilityStatus');
 
     res.json({ success: true, data: players });
   } catch (error) {

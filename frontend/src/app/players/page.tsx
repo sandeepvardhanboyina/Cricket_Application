@@ -10,18 +10,22 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
 import { Loading } from '@/components/ui/Loading';
+import { PlayerAvailabilityBadge } from '@/components/ui/PlayerAvailabilityBadge';
+import { PLAYER_AVAILABILITY_STATUSES } from '@/lib/playerAvailability';
 import { Search, UserPlus } from 'lucide-react';
 
 export default function PlayersPage() {
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
+  const [availability, setAvailability] = useState('');
   const [rankingType, setRankingType] = useState('batting');
+  const hasFilters = Boolean(search || role || availability);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['players', search, role, rankingType],
+    queryKey: ['players', search, role, availability, rankingType],
     queryFn: () => {
-      if (search || role) {
-        return playersAPI.getAll({ search, role }).then((r) => r.data);
+      if (hasFilters) {
+        return playersAPI.getAll({ search, role, availabilityStatus: availability }).then((r) => r.data);
       }
       return playersAPI.getRankings(rankingType).then((r) => ({ data: r.data.data }));
     },
@@ -59,6 +63,14 @@ export default function PlayersPage() {
             ]}
           />
           <Select
+            value={availability}
+            onChange={(e) => setAvailability(e.target.value)}
+            options={[
+              { value: '', label: 'All Availability' },
+              ...PLAYER_AVAILABILITY_STATUSES.map((status) => ({ value: status, label: status[0] + status.slice(1).toLowerCase() })),
+            ]}
+          />
+          <Select
             value={rankingType}
             onChange={(e) => setRankingType(e.target.value)}
             options={[
@@ -80,6 +92,7 @@ export default function PlayersPage() {
                 <th className="pb-3">Player</th>
                 <th className="pb-3">Team</th>
                 <th className="pb-3">Role</th>
+                <th className="pb-3">Availability</th>
                 <th className="pb-3 text-right">Runs</th>
                 <th className="pb-3 text-right pr-4">Wickets</th>
               </tr>
@@ -102,6 +115,9 @@ export default function PlayersPage() {
                     )}
                   </td>
                   <td className="py-3 text-sm">{player.role}</td>
+                  <td className="py-3">
+                    <PlayerAvailabilityBadge status={player.availabilityStatus} />
+                  </td>
                   <td className="py-3 text-right font-semibold text-cricket-600">
                     {player.statistics?.batting?.runs || 0}
                   </td>

@@ -7,6 +7,7 @@ import { Player } from '@/types';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { Loading } from '@/components/ui/Loading';
+import { PlayerAvailabilityBadge } from '@/components/ui/PlayerAvailabilityBadge';
 
 export default function TopPlayers() {
   const { data, isLoading } = useQuery({
@@ -41,6 +42,9 @@ export default function TopPlayers() {
                   </div>
                   <h3 className="font-semibold text-sm text-gray-900 dark:text-white truncate">{player.name}</h3>
                   <p className="text-xs text-gray-500">{player.role}</p>
+                  <div className="mt-2 flex justify-center">
+                    <PlayerAvailabilityBadge status={player.availabilityStatus} />
+                  </div>
                   <p className="text-lg font-bold text-cricket-600 mt-1">
                     {player.statistics?.batting?.runs || 0}
                     <span className="text-xs font-normal text-gray-400 ml-1">runs</span>

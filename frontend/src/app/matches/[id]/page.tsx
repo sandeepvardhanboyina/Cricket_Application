@@ -2,11 +2,13 @@
 
 import { use } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { matchesAPI } from '@/lib/api';
 import { Match, Player } from '@/types';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { PageLoading } from '@/components/ui/Loading';
+import { MatchWeatherCard } from '@/components/matches/MatchWeatherCard';
 import { formatDate, formatDateTime } from '@/lib/utils';
 
 export default function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -37,11 +39,23 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
         <h1 className="page-title">
           {match.teamA?.teamName} vs {match.teamB?.teamName}
         </h1>
-        <p className="text-gray-500 mt-1">{formatDate(match.date)} | {match.ground} | {match.overs} overs</p>
+        <p className="text-gray-500 mt-1">
+          {formatDate(match.date)} | {match.ground} | {match.overs} overs
+        </p>
         {match.result?.margin && (
-          <p className="text-cricket-600 font-medium mt-2">
-            {typeof match.result.winner === 'object' ? match.result.winner.teamName : ''} won by {match.result.margin}
-          </p>
+          <div className="mt-2 space-y-2">
+            <p className="text-cricket-600 font-medium">
+              {typeof match.result.winner === 'object' ? match.result.winner.teamName : ''} won by {match.result.margin}
+            </p>
+            {match.status === 'completed' && (
+              <Link
+                href={`/matches/${match._id}/scorecard`}
+                className="inline-flex items-center rounded-lg border border-cricket-600 px-3 py-2 text-sm font-medium text-cricket-600 transition-colors hover:bg-cricket-50 dark:hover:bg-cricket-900/20"
+              >
+                📊 View Scorecard
+              </Link>
+            )}
+          </div>
         )}
       </div>
 
@@ -58,6 +72,10 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
           </CardBody>
         </Card>
       )}
+
+      <div className="mb-6 max-w-md">
+        <MatchWeatherCard weather={match.weather} />
+      </div>
 
       {match.innings?.map((innings, idx) => (
         <Card key={idx} className="mb-6">
@@ -138,11 +156,15 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
 
       {match.commentary && match.commentary.length > 0 && (
         <Card>
-          <CardHeader><h2 className="section-title mb-0">Commentary</h2></CardHeader>
+          <CardHeader>
+            <h2 className="section-title mb-0">Commentary</h2>
+          </CardHeader>
           <CardBody className="space-y-2 max-h-96 overflow-y-auto">
             {match.commentary.map((c, i) => (
               <div key={i} className="text-sm border-b dark:border-gray-800 pb-2">
-                <span className="text-gray-500">{c.over}.{c.ball}</span>{' '}
+                <span className="text-gray-500">
+                  {c.over}.{c.ball}
+                </span>{' '}
                 <span className={c.isWicket ? 'text-red-500 font-medium' : ''}>{c.text}</span>
               </div>
             ))}

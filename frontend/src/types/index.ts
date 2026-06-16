@@ -7,6 +7,92 @@ export interface User {
   token?: string;
 }
 
+export type PlayerAvailabilityStatus =
+  | 'AVAILABLE'
+  | 'PENDING'
+  | 'INJURED'
+  | 'SUSPENDED'
+  | 'UNAVAILABLE';
+
+export type MatchResult = 'W' | 'L' | 'NR';
+
+export interface MatchWeather {
+  temperature: number;
+  condition: string;
+  rainChance: number;
+  windSpeed: number;
+  icon: string;
+}
+
+export interface BattingStats {
+  player: Player | string;
+  playerName: string;
+  runs: number;
+  balls: number;
+  fours: number;
+  sixes: number;
+  strikeRate: number;
+  dismissal?: string;
+}
+
+export interface BowlingStats {
+  player: Player | string;
+  playerName: string;
+  overs: number;
+  maidens: number;
+  runs: number;
+  wickets: number;
+  economy: number;
+}
+
+export interface FallOfWicket {
+  wicket: number;
+  score: number;
+  over?: string;
+  batsman?: string;
+  wicketText?: string;
+}
+
+export interface Partnership {
+  wicket?: number | null;
+  players: string[];
+  runs: number;
+  balls: number;
+}
+
+export interface TimelineEvent {
+  over: string;
+  title: string;
+  description: string;
+  type?: string;
+  team?: Team | string | null;
+  player?: Player | string | null;
+}
+
+export interface ScorecardInnings {
+  team: Team | string;
+  totalRuns: number;
+  totalWickets: number;
+  totalOvers: number;
+  extras?: number;
+  battingStats: BattingStats[];
+  bowlingStats: BowlingStats[];
+  fallOfWickets?: FallOfWicket[];
+  partnerships?: Partnership[];
+  partnershipSummary?: string[];
+}
+
+export interface Scorecard {
+  matchId?: string;
+  playerOfMatch?: Player | string | null;
+  toss?: {
+    winner?: Team | string | null;
+    decision?: 'bat' | 'bowl';
+  };
+  innings: ScorecardInnings[];
+  timelineEvents?: TimelineEvent[];
+}
+
 export interface Statistics {
   batting: {
     matches: number;
@@ -46,6 +132,7 @@ export interface Player {
   battingStyle: string;
   bowlingStyle: string;
   jerseyNumber: number;
+  availabilityStatus?: PlayerAvailabilityStatus;
   profileImage: string;
   team?: Team | string | null;
   registrationType?: 'team' | 'individual';
@@ -70,6 +157,7 @@ export interface Team {
   city: string;
   logo: string;
   players: Player[];
+  recentForm?: MatchResult[];
   statistics: {
     matches: number;
     wins: number;
@@ -114,6 +202,8 @@ export interface Match {
   ground: string;
   overs: number;
   status: 'scheduled' | 'live' | 'completed' | 'abandoned';
+  weather?: MatchWeather | null;
+  scorecard?: Scorecard | null;
   innings: Array<{
     team: Team | string;
     totalRuns: number;
@@ -155,6 +245,7 @@ export interface Match {
     runs: number;
     isWicket: boolean;
   }>;
+  timelineEvents?: TimelineEvent[];
 }
 
 export interface ApiResponse<T> {
@@ -171,4 +262,8 @@ export interface DashboardStats {
   totalTournaments: number;
   pendingTeams: number;
   unreadMessages: number;
+  availablePlayers: number;
+  injuredPlayers: number;
+  suspendedPlayers: number;
+  unavailablePlayers: number;
 }

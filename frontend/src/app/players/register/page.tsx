@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import toast from 'react-hot-toast';
 import { UserPlus } from 'lucide-react';
+import { PLAYER_AVAILABILITY_STATUSES } from '@/lib/playerAvailability';
 
 const ROLES = ['Batsman', 'Bowler', 'All-Rounder', 'Wicket Keeper'];
 const BATTING_STYLES = ['Right-hand bat', 'Left-hand bat'];
@@ -28,6 +29,7 @@ export default function PlayerRegisterPage() {
     battingStyle: 'Right-hand bat',
     bowlingStyle: 'Does not bowl',
     jerseyNumber: '',
+    availabilityStatus: 'AVAILABLE',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,9 +41,9 @@ export default function PlayerRegisterPage() {
       Object.entries(form).forEach(([key, value]) => formData.append(key, value));
       if (profileImage) formData.append('profileImage', profileImage);
 
-      await playersAPI.register(formData);
+      const response = await playersAPI.register(formData);
       toast.success('Player registered! Awaiting verification and team assignment.');
-      router.push('/players');
+      router.push(`/players/${response.data.data._id}`);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Registration failed');
@@ -95,6 +97,15 @@ export default function PlayerRegisterPage() {
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
               options={ROLES.map((r) => ({ value: r, label: r }))}
+            />
+            <Select
+              label="Availability Status *"
+              value={form.availabilityStatus}
+              onChange={(e) => setForm({ ...form, availabilityStatus: e.target.value })}
+              options={PLAYER_AVAILABILITY_STATUSES.map((status) => ({
+                value: status,
+                label: status[0] + status.slice(1).toLowerCase(),
+              }))}
             />
             <Select
               label="Batting Style"
