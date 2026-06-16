@@ -143,3 +143,6 @@ Full API documentation at `/api/docs` (Swagger UI).
 ## License
 
 MIT
+
+
+This is only for developer use
