@@ -116,6 +116,22 @@ const scorecardSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const scorecardAuditSchema = new mongoose.Schema(
+  {
+    editedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    editorName: { type: String, default: '' },
+    action: { type: String, enum: ['submitted', 'approved', 'edited'], default: 'edited' },
+    statusFrom: { type: String, default: '' },
+    statusTo: { type: String, default: '' },
+    note: { type: String, default: '' },
+    changes: { type: Object, default: {} },
+    previousScorecard: { type: scorecardSchema, default: null },
+    nextScorecard: { type: scorecardSchema, default: null },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const inningsSchema = new mongoose.Schema(
   {
     team: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', required: true },
@@ -190,6 +206,19 @@ const matchSchema = new mongoose.Schema(
     scorecard: {
       type: scorecardSchema,
       default: () => ({}),
+    },
+    scorecardDraft: {
+      type: scorecardSchema,
+      default: null,
+    },
+    scorecardStatus: {
+      type: String,
+      enum: ['official', 'pending_review', 'draft'],
+      default: 'official',
+    },
+    scorecardAuditTrail: {
+      type: [scorecardAuditSchema],
+      default: [],
     },
     result: {
       winner: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },

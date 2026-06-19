@@ -117,6 +117,17 @@ const seed = async () => {
       statistics: { matches: 5, wins: 2, losses: 3, winPercentage: 40 },
     });
 
+    const team3 = await Team.create({
+      teamName: 'Aces',
+      captain: 'Shreyas Iyer',
+      captainEmail: 'aces@crickethub.com',
+      mobileNumber: '9876543212',
+      city: 'Bengaluru',
+      logo: '',
+      status: 'approved',
+      statistics: { matches: 5, wins: 2, losses: 3, winPercentage: 40 },
+    });
+
     const team2PlayerNames = [
       { name: 'Rishabh Pant', role: 'Wicket Keeper', jersey: 17, isCaptain: true },
       { name: 'Prithvi Shaw', role: 'Batsman', jersey: 5 },
@@ -181,10 +192,12 @@ const seed = async () => {
       teams: [
         { team: team._id, registrationStatus: 'approved' },
         { team: team2._id, registrationStatus: 'approved' },
+        { team: team3._id, registrationStatus: 'approved' },
       ],
       pointsTable: [
         { team: team._id, matches: 2, won: 1, lost: 1, points: 2, nrr: 0.5 },
         { team: team2._id, matches: 2, won: 1, lost: 1, points: 2, nrr: -0.5 },
+        { team: team3._id, matches: 0, won: 0, lost: 0, points: 0, nrr: 0 },
       ],
       sponsors: [
         { name: 'SportsGear Pro', logo: '', website: 'https://example.com' },
@@ -285,6 +298,32 @@ const seed = async () => {
         ],
       },
       result: { winner: team._id, margin: '13 runs', manOfTheMatch: players[4] },
+      createdBy: admin._id,
+    });
+
+    await Match.create({
+      tournament: tournament._id,
+      teamA: team3._id,
+      teamB: team._id,
+      date: new Date('2026-06-18'),
+      ground: 'Eden Gardens',
+      overs: 20,
+      status: 'scheduled',
+      weather: createMockWeather(new Date('2026-06-18')),
+      innings: [],
+      createdBy: admin._id,
+    });
+
+    await Match.create({
+      tournament: tournament._id,
+      teamA: team3._id,
+      teamB: team2._id,
+      date: new Date('2026-06-21'),
+      ground: 'M. Chinnaswamy Stadium',
+      overs: 20,
+      status: 'scheduled',
+      weather: createMockWeather(new Date('2026-06-21')),
+      innings: [],
       createdBy: admin._id,
     });
 

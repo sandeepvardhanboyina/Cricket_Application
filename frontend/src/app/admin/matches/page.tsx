@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { matchesAPI, tournamentsAPI, teamsAPI } from '@/lib/api';
 import { Match, Tournament, Team } from '@/types';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -104,15 +105,32 @@ export default function AdminMatchesPage() {
 
       <div className="space-y-3">
         {(matches || []).map((m) => (
-          <Card key={m._id}>
-            <CardBody className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">{m.teamA?.teamName} vs {m.teamB?.teamName}</p>
-                <p className="text-sm text-gray-500">{formatDate(m.date)} | {m.ground}</p>
-              </div>
-              <Badge variant={m.status === 'live' ? 'live' : 'info'}>{m.status}</Badge>
-            </CardBody>
-          </Card>
+          <Link
+            key={m._id}
+            href={`/matches/${m._id}`}
+            onClick={() => {
+              console.log('Match clicked', m._id);
+              console.log('navigate called', `/matches/${m._id}`);
+            }}
+            className="block"
+          >
+            <Card
+              hover
+              className="cursor-pointer transition-all duration-200 hover:scale-[1.01] hover:shadow-lg hover:border-cricket-300 dark:hover:border-cricket-700"
+            >
+              <CardBody className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold">
+                    {m.teamA?.teamName} vs {m.teamB?.teamName}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {formatDate(m.date)} | {m.ground}
+                  </p>
+                </div>
+                <Badge variant={m.status === 'live' ? 'live' : 'info'}>{m.status}</Badge>
+              </CardBody>
+            </Card>
+          </Link>
         ))}
       </div>
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -38,6 +38,26 @@ function teamResultLabel(match: Match) {
   return winner ? `${winner} won by ${match.result?.margin || 'match result unavailable'}` : 'Result unavailable';
 }
 
+function inningsRunRate(innings?: ScorecardInnings | null) {
+  if (!innings || !innings.totalOvers) return 0;
+  return parseFloat((innings.totalRuns / innings.totalOvers).toFixed(2));
+}
+
+function inningsFours(innings?: ScorecardInnings | null) {
+  return (innings?.battingStats || []).reduce((total, batter) => total + (batter.fours || 0), 0);
+}
+
+function inningsSixes(innings?: ScorecardInnings | null) {
+  return (innings?.battingStats || []).reduce((total, batter) => total + (batter.sixes || 0), 0);
+}
+
+function formatPlayerPerformance(player: { playerName?: string; runs?: number; balls?: number; wickets?: number; runsConceded?: number }) {
+  if ('wickets' in player && (player.wickets || 0) > 0) {
+    return `${player.playerName || 'Player'} - ${player.wickets}/${player.runs || 0}`;
+  }
+  return `${player.playerName || 'Player'} - ${player.runs || 0} (${player.balls || 0})`;
+}
+
 function buildDownloadText(match: Match, scorecard: Scorecard) {
   const lines: string[] = [];
   lines.push(`${teamName(match.teamA)} vs ${teamName(match.teamB)}`);
@@ -62,8 +82,21 @@ function buildDownloadText(match: Match, scorecard: Scorecard) {
         `${bowler.playerName} | ${bowler.overs} | ${bowler.maidens} | ${bowler.runs} | ${bowler.wickets} | ${bowler.economy}`
       );
     });
+    lines.push(`Extras: ${innings.extras || 0}`);
     lines.push('');
   });
+
+  const inningsOne = scorecard.innings[0];
+  const inningsTwo = scorecard.innings[1];
+  if (inningsOne && inningsTwo) {
+    lines.push('Team Comparison:');
+    lines.push(
+      `${teamName(inningsOne.team)} ${inningsOne.totalRuns}/${inningsOne.totalWickets} vs ${teamName(inningsTwo.team)} ${inningsTwo.totalRuns}/${inningsTwo.totalWickets}`
+    );
+    lines.push(
+      `${inningsFours(inningsOne)} fours, ${inningsSixes(inningsOne)} sixes vs ${inningsFours(inningsTwo)} fours, ${inningsSixes(inningsTwo)} sixes`
+    );
+  }
 
   return lines.join('\n');
 }
@@ -94,6 +127,58 @@ function Section({
   );
 }
 
+function InningsSection({
+  inningsId,
+  title,
+  subtitle,
+  expanded,
+  onToggle,
+  children,
+}: {
+  inningsId: string;
+  title: string;
+  subtitle?: string;
+  expanded: boolean;
+  onToggle: (inningsId: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="p-0">
+        <button
+          type="button"
+          onClick={() => {
+            console.log('Opening innings', inningsId);
+            onToggle(inningsId);
+          }}
+          className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-800/70"
+          aria-expanded={expanded}
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="text-lg font-semibold text-gray-900 dark:text-white" aria-hidden="true">
+              {expanded ? '▼' : '▶'}
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
+              {subtitle && <p className="mt-1 text-xs text-gray-500">{subtitle}</p>}
+            </div>
+          </div>
+          <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            {expanded ? 'Collapse' : 'Expand'}
+          </span>
+        </button>
+      </CardHeader>
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          expanded ? 'max-h-[4000px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <CardBody>{children}</CardBody>
+      </div>
+    </Card>
+  );
+}
+
 function ResponsiveTable({
   headers,
   rows,
@@ -107,7 +192,10 @@ function ResponsiveTable({
         <thead>
           <tr className="border-b border-gray-200 text-gray-500 dark:border-gray-700">
             {headers.map((header) => (
-              <th key={header} className="py-2 px-3 text-right first:text-left first:sticky first:left-0 first:bg-white first:dark:bg-gray-900 first:z-[1]">
+              <th
+                key={header}
+                className="sticky top-0 z-10 bg-white py-3 px-3 text-right first:left-0 first:text-left first:dark:bg-gray-900 dark:bg-gray-900"
+              >
                 {header}
               </th>
             ))}
@@ -119,7 +207,7 @@ function ResponsiveTable({
               {row.map((cell, cellIndex) => (
                 <td
                   key={cellIndex}
-                  className="py-2 px-3 text-right first:text-left first:sticky first:left-0 first:bg-white first:dark:bg-gray-900"
+                  className="border-b border-gray-100 py-2 px-3 text-right first:sticky first:left-0 first:bg-white first:text-left first:dark:bg-gray-900 dark:border-gray-800 dark:bg-gray-900"
                 >
                   {cell}
                 </td>
@@ -161,6 +249,7 @@ export function MatchScorecardView({
   match: Match;
   scorecard?: Scorecard | null;
 }) {
+  const [openInnings, setOpenInnings] = useState<string | null>(null);
   const scorecardData = scorecard || match.scorecard || null;
 
   const derivedTimeline = useMemo(() => {
@@ -212,6 +301,8 @@ export function MatchScorecardView({
 
   const inningsOne = scorecardData.innings[0];
   const inningsTwo = scorecardData.innings[1];
+  const inningsOneId = `innings-${1}-${teamName(inningsOne.team)}`;
+  const inningsTwoId = `innings-${2}-${teamName(inningsTwo.team)}`;
   const potm = playerName(scorecardData.playerOfMatch || match.result?.manOfTheMatch, 'Player of the Match unavailable');
   const winningTeam = typeof match.result?.winner === 'object' ? match.result.winner.teamName : teamName(match.teamA);
   const matchMargin = match.result?.margin || 'Margin unavailable';
@@ -220,21 +311,42 @@ export function MatchScorecardView({
   )[0];
   const topBowler = [...scorecardData.innings.flatMap((inning) => inning.bowlingStats)].sort(
     (left, right) => right.wickets - left.wickets || left.runs - right.runs
-  )[0];
+  ).find((bowler) => bowler.wickets > 0 || bowler.overs > 0);
   const highestPartnership = [...scorecardData.innings.flatMap((inning) => inning.partnerships || [])].sort(
     (left, right) => right.runs - left.runs
   )[0];
+  const teamComparison = inningsTwo
+    ? {
+        first: {
+          teamName: teamName(inningsOne.team),
+          runs: inningsOne.totalRuns,
+          wickets: inningsOne.totalWickets,
+          fours: inningsFours(inningsOne),
+          sixes: inningsSixes(inningsOne),
+          runRate: inningsRunRate(inningsOne),
+        },
+        second: {
+          teamName: teamName(inningsTwo.team),
+          runs: inningsTwo.totalRuns,
+          wickets: inningsTwo.totalWickets,
+          fours: inningsFours(inningsTwo),
+          sixes: inningsSixes(inningsTwo),
+          runRate: inningsRunRate(inningsTwo),
+        },
+      }
+    : null;
+
+  const handleToggleInnings = (inningsId: string) => {
+    setOpenInnings((current) => (current === inningsId ? null : inningsId));
+  };
 
   return (
     <div className="space-y-6 print:space-y-4">
       <div className="flex flex-col gap-4 print:hidden md:flex-row md:items-center md:justify-between">
         <div className="space-y-2">
-          <Link
-            href={`/matches/${match._id}`}
-            className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-cricket-600 dark:text-gray-300"
-          >
+          <Link href="/matches" className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-cricket-600 dark:text-gray-300">
             <ArrowLeft className="h-4 w-4" />
-            Back to Match
+            Back to Matches
           </Link>
           <div>
             <p className="text-sm uppercase tracking-wide text-gray-500">Match Scorecard</p>
@@ -263,7 +375,7 @@ export function MatchScorecardView({
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={printScorecard}>
             <Printer className="h-4 w-4" />
-            Export PDF
+            Download Scorecard PDF
           </Button>
           <Button variant="secondary" onClick={downloadScorecard}>
             <Download className="h-4 w-4" />
@@ -347,9 +459,41 @@ export function MatchScorecardView({
         </div>
       </Section>
 
-      <Section
-        title={`${teamName(match.teamA)} Innings`}
+      {teamComparison && (
+        <Section title="Team Comparison" subtitle="A side-by-side look at both innings">
+          <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-2 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-900">
+              <div className="border-r border-gray-200 p-4 dark:border-gray-700">{teamComparison.first.teamName}</div>
+              <div className="p-4">{teamComparison.second.teamName}</div>
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-gray-200 dark:divide-gray-700">
+              <div className="space-y-2 p-4">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {teamComparison.first.runs}/{teamComparison.first.wickets}
+                </p>
+                <p className="text-sm text-gray-500">{teamComparison.first.runRate} run rate</p>
+                <p className="text-sm text-gray-500">{teamComparison.first.fours} fours</p>
+                <p className="text-sm text-gray-500">{teamComparison.first.sixes} sixes</p>
+              </div>
+              <div className="space-y-2 p-4">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {teamComparison.second.runs}/{teamComparison.second.wickets}
+                </p>
+                <p className="text-sm text-gray-500">{teamComparison.second.runRate} run rate</p>
+                <p className="text-sm text-gray-500">{teamComparison.second.fours} fours</p>
+                <p className="text-sm text-gray-500">{teamComparison.second.sixes} sixes</p>
+              </div>
+            </div>
+          </div>
+        </Section>
+      )}
+
+      <InningsSection
+        inningsId={inningsOneId}
+        title={`Innings 1 — ${teamName(inningsOne.team)}`}
         subtitle={`${inningsOne.totalRuns}/${inningsOne.totalWickets} (${inningsOne.totalOvers} Overs)`}
+        expanded={openInnings === inningsOneId}
+        onToggle={handleToggleInnings}
       >
         <div className="grid gap-6">
           <div>
@@ -425,11 +569,14 @@ export function MatchScorecardView({
             </div>
           </div>
         </div>
-      </Section>
+      </InningsSection>
 
-      <Section
-        title={`${teamName(match.teamB)} Innings`}
+      <InningsSection
+        inningsId={inningsTwoId}
+        title={`Innings 2 — ${teamName(inningsTwo.team)}`}
         subtitle={`${inningsTwo.totalRuns}/${inningsTwo.totalWickets} (${inningsTwo.totalOvers} Overs)`}
+        expanded={openInnings === inningsTwoId}
+        onToggle={handleToggleInnings}
       >
         <div className="grid gap-6">
           <div>
@@ -473,7 +620,7 @@ export function MatchScorecardView({
             />
           </div>
         </div>
-      </Section>
+      </InningsSection>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title="Match Timeline" subtitle="Major events from the game">
@@ -522,15 +669,22 @@ export function MatchScorecardView({
                   <Flame className="h-4 w-4" />
                   <span className="text-xs font-semibold uppercase tracking-wide">Standout Batting</span>
                 </div>
-                <p className="mt-3 text-lg font-bold text-gray-900 dark:text-white">{inningsOne.battingStats[0].playerName}</p>
-                <p className="text-sm text-gray-500">{inningsOne.battingStats[0].runs} ({inningsOne.battingStats[0].balls})</p>
+                <p className="mt-3 text-lg font-bold text-gray-900 dark:text-white">
+                  {formatPlayerPerformance(inningsOne.battingStats[0])}
+                </p>
+                <p className="text-sm text-gray-500">Standout performer from the first innings</p>
               </div>
             )}
           </div>
         </Section>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <Section title="Ball By Ball Commentary" subtitle="Future-ready placeholder">
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900">
+            Ball by Ball Commentary Coming Soon
+          </div>
+        </Section>
         <Section title="Wagon Wheel" subtitle="Future-ready placeholder">
           <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900">
             Wagon Wheel Coming Soon
@@ -538,7 +692,17 @@ export function MatchScorecardView({
         </Section>
         <Section title="Manhattan Chart" subtitle="Future-ready placeholder">
           <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900">
-            Runs Per Over Chart Coming Soon
+            Manhattan Chart Coming Soon
+          </div>
+        </Section>
+        <Section title="Run Rate Graph" subtitle="Future-ready placeholder">
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900">
+            Run Rate Graph Coming Soon
+          </div>
+        </Section>
+        <Section title="Match Highlights" subtitle="Future-ready placeholder">
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900">
+            Match Highlights Coming Soon
           </div>
         </Section>
       </div>

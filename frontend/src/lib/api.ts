@@ -84,10 +84,12 @@ export const matchesAPI = {
   getAll: (params?: Record<string, string>) => api.get('/matches', { params }),
   getById: (id: string) => api.get(`/matches/${id}`),
   getScorecard: (id: string) => api.get(`/matches/${id}/scorecard`),
+  getScorecardHistory: (id: string) => api.get(`/matches/${id}/scorecard/history`),
   getLatest: () => api.get('/matches/latest'),
   create: (data: Record<string, unknown>) => api.post('/matches', data),
   updateScorecard: (id: string, data: Record<string, unknown>) =>
     api.put(`/matches/${id}/scorecard`, data),
+  approveScorecard: (id: string) => api.post(`/matches/${id}/scorecard/approve`),
   updateLive: (id: string, data: Record<string, unknown>) => api.put(`/matches/${id}/live`, data),
   delete: (id: string) => api.delete(`/matches/${id}`),
 };

@@ -12,6 +12,7 @@ const { sendEmail } = require('../utils/email');
 exports.register = async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
+    const normalizedRole = role === 'admin' ? 'admin' : role === 'captain' ? 'captain' : role === 'team_manager' ? 'team_manager' : 'user';
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -22,7 +23,7 @@ exports.register = async (req, res, next) => {
       name,
       email,
       password,
-      role: role === 'team_manager' ? 'team_manager' : 'visitor',
+      role: normalizedRole,
     });
 
     const token = generateToken(user._id);
