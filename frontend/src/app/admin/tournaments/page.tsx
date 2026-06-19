@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { tournamentsAPI } from '@/lib/api';
 import { Tournament } from '@/types';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -14,6 +15,7 @@ import toast from 'react-hot-toast';
 import { Plus } from 'lucide-react';
 
 export default function AdminTournamentsPage() {
+  const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
@@ -26,6 +28,14 @@ export default function AdminTournamentsPage() {
     queryKey: ['admin-tournaments'],
     queryFn: () => tournamentsAPI.getAll().then((r) => r.data.data as Tournament[]),
   });
+
+  const handleTournamentClick = (tournament: Tournament) => {
+    console.log('Tournament clicked', tournament);
+    console.log('Route found?', Boolean(tournament?._id));
+    const targetRoute = `/tournaments/${tournament._id}`;
+    console.log('navigate called', targetRoute);
+    router.push(targetRoute);
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +86,20 @@ export default function AdminTournamentsPage() {
 
       <div className="space-y-3">
         {(data || []).map((t) => (
-          <Card key={t._id}>
+          <Card
+            key={t._id}
+            hover
+            className="cursor-pointer transition-all duration-200 hover:scale-[1.01] hover:shadow-lg hover:border-cricket-300 dark:hover:border-cricket-700"
+            onClick={() => handleTournamentClick(t)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleTournamentClick(t);
+              }
+            }}
+          >
             <CardBody className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold">{t.title}</h3>

@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { tournamentsAPI } from '@/lib/api';
@@ -27,11 +27,16 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
     queryFn: () => tournamentsAPI.getById(id).then((r) => r.data.data as TournamentDetail),
   });
 
+  useEffect(() => {
+    console.log('Tournament details route loaded', { tournamentId: id, route: `/tournaments/${id}` });
+  }, [id]);
+
   if (isLoading) return <PageLoading />;
   if (!data) return <div className="page-container text-center py-16">Tournament not found</div>;
 
   const { tournament, matches, topScorers, topWicketTakers } = data;
   const tabs = ['teams', 'fixtures', 'results', 'points', 'batting', 'bowling'];
+  const totalTeams = tournament.teams?.length || 0;
 
   return (
     <div>
@@ -41,9 +46,22 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
           <h1 className="font-display text-4xl font-bold mb-3">{tournament.title}</h1>
           <p className="text-gray-300 max-w-2xl mb-4">{tournament.description}</p>
           <div className="flex flex-wrap gap-6 text-sm text-gray-300">
-            <span className="flex items-center gap-2"><Calendar className="w-4 h-4" />{formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}</span>
-            <span className="flex items-center gap-2"><IndianRupee className="w-4 h-4" />Fee: ₹{tournament.registrationFee}</span>
-            <span className="flex items-center gap-2"><Trophy className="w-4 h-4" />Prize Pool: ₹{tournament.prizePool?.toLocaleString()}</span>
+            <span className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              {formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}
+            </span>
+            <span className="flex items-center gap-2">
+              <IndianRupee className="w-4 h-4" />
+              Fee: â‚¹{tournament.registrationFee}
+            </span>
+            <span className="flex items-center gap-2">
+              <Trophy className="w-4 h-4" />
+              Prize Pool: â‚¹{tournament.prizePool?.toLocaleString()}
+            </span>
+            <span className="flex items-center gap-2">
+              <Trophy className="w-4 h-4" />
+              Total Teams: {totalTeams}
+            </span>
           </div>
         </div>
       </div>
@@ -66,24 +84,27 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
         </div>
 
         {tab === 'teams' && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {tournament.teams?.map((entry) => {
-              const team = typeof entry.team === 'object' ? entry.team : null;
-              if (!team) return null;
-              return (
-                <Link key={team._id} href={`/teams/${team._id}`}>
-                  <Card hover>
-                    <CardBody className="text-center p-4">
-                      <h3 className="font-semibold">{team.teamName}</h3>
-                      <p className="text-xs text-gray-500">{team.city}</p>
-                      <Badge variant={entry.registrationStatus === 'approved' ? 'success' : 'warning'} className="mt-2">
-                        {entry.registrationStatus}
-                      </Badge>
-                    </CardBody>
-                  </Card>
-                </Link>
-              );
-            })}
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">Teams ({totalTeams})</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {tournament.teams?.map((entry) => {
+                const team = typeof entry.team === 'object' ? entry.team : null;
+                if (!team) return null;
+                return (
+                  <Link key={team._id} href={`/teams/${team._id}`}>
+                    <Card hover>
+                      <CardBody className="text-center p-4">
+                        <h3 className="font-semibold">{team.teamName}</h3>
+                        <p className="text-xs text-gray-500">{team.city}</p>
+                        <Badge variant={entry.registrationStatus === 'approved' ? 'success' : 'warning'} className="mt-2">
+                          {entry.registrationStatus}
+                        </Badge>
+                      </CardBody>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         )}
 

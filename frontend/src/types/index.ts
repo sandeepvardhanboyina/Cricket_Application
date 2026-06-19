@@ -2,7 +2,7 @@ export interface User {
   _id: string;
   name: string;
   email: string;
-  role: 'admin' | 'team_manager' | 'visitor';
+  role: 'admin' | 'captain' | 'user' | 'team_manager' | 'visitor';
   team?: Team;
   token?: string;
 }
@@ -91,6 +91,19 @@ export interface Scorecard {
   };
   innings: ScorecardInnings[];
   timelineEvents?: TimelineEvent[];
+}
+
+export interface ScorecardAuditEntry {
+  editedBy?: User | string | null;
+  editorName: string;
+  action: 'submitted' | 'approved' | 'edited';
+  statusFrom: string;
+  statusTo: string;
+  note?: string;
+  changes?: Record<string, unknown>;
+  previousScorecard?: Scorecard | null;
+  nextScorecard?: Scorecard | null;
+  createdAt: string;
 }
 
 export interface Statistics {
@@ -204,6 +217,9 @@ export interface Match {
   status: 'scheduled' | 'live' | 'completed' | 'abandoned';
   weather?: MatchWeather | null;
   scorecard?: Scorecard | null;
+  scorecardDraft?: Scorecard | null;
+  scorecardStatus?: 'official' | 'pending_review' | 'draft';
+  scorecardAuditTrail?: ScorecardAuditEntry[];
   innings: Array<{
     team: Team | string;
     totalRuns: number;

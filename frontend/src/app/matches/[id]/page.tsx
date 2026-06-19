@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { matchesAPI } from '@/lib/api';
@@ -11,8 +11,23 @@ import { PageLoading } from '@/components/ui/Loading';
 import { MatchWeatherCard } from '@/components/matches/MatchWeatherCard';
 import { formatDate, formatDateTime } from '@/lib/utils';
 
+function getInningsTeamName(
+  match: Match,
+  innings: { team?: string | { _id?: string; teamName?: string } | null },
+  index: number
+) {
+  if (innings.team && typeof innings.team === 'object') return innings.team.teamName || 'Team';
+  const inningsTeamId = String(innings.team || '');
+  if (match.teamA && inningsTeamId === match.teamA._id) return match.teamA.teamName;
+  if (match.teamB && inningsTeamId === match.teamB._id) return match.teamB.teamName;
+  if (index === 0) return match.teamA?.teamName || 'Team';
+  if (index === 1) return match.teamB?.teamName || 'Team';
+  return 'Team';
+}
+
 export default function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const [openInnings, setOpenInnings] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['match', id],
@@ -24,6 +39,7 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
   if (!data) return <div className="page-container text-center py-16">Match not found</div>;
 
   const match = data;
+  const scorecardInnings = match.scorecard?.innings?.length ? match.scorecard.innings : match.innings || [];
 
   return (
     <div className="page-container">
@@ -77,82 +93,138 @@ export default function MatchDetailPage({ params }: { params: Promise<{ id: stri
         <MatchWeatherCard weather={match.weather} />
       </div>
 
-      {match.innings?.map((innings, idx) => (
-        <Card key={idx} className="mb-6">
-          <CardHeader>
-            <h2 className="section-title mb-0">
-              Innings {idx + 1} — {typeof innings.team === 'object' ? innings.team.teamName : 'Team'}
-              <span className="ml-3 text-cricket-600">
-                {innings.totalRuns}/{innings.totalWickets} ({innings.totalOvers} ov)
-              </span>
-            </h2>
-          </CardHeader>
-          <CardBody>
-            {innings.batting?.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-500 mb-2">BATTING</h3>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b dark:border-gray-700 text-gray-500">
-                      <th className="pb-2 text-left">Batsman</th>
-                      <th className="pb-2 text-right">R</th>
-                      <th className="pb-2 text-right">B</th>
-                      <th className="pb-2 text-right">4s</th>
-                      <th className="pb-2 text-right">6s</th>
-                      <th className="pb-2 text-right">SR</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {innings.batting.map((b, i) => (
-                      <tr key={i} className="border-b dark:border-gray-800">
-                        <td className="py-2">
-                          {typeof b.player === 'object' ? (b.player as Player).name : '-'}
-                          {b.isOut ? '' : ' *'}
-                        </td>
-                        <td className="py-2 text-right font-semibold">{b.runs}</td>
-                        <td className="py-2 text-right">{b.balls}</td>
-                        <td className="py-2 text-right">{b.fours}</td>
-                        <td className="py-2 text-right">{b.sixes}</td>
-                        <td className="py-2 text-right">{b.strikeRate}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+      {scorecardInnings.map((innings, idx) => {
+        const inningsId = `innings-${idx + 1}`;
+        const isOpen = openInnings === inningsId;
+        const inningsTeamName = getInningsTeamName(match, innings, idx);
+        const battingRows = 'battingStats' in innings ? innings.battingStats : innings.batting || [];
+        const bowlingRows = 'bowlingStats' in innings ? innings.bowlingStats : innings.bowling || [];
+        const scorecardLoaded = battingRows.length > 0 || bowlingRows.length > 0;
 
-            {innings.bowling?.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-500 mb-2">BOWLING</h3>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b dark:border-gray-700 text-gray-500">
-                      <th className="pb-2 text-left">Bowler</th>
-                      <th className="pb-2 text-right">O</th>
-                      <th className="pb-2 text-right">M</th>
-                      <th className="pb-2 text-right">R</th>
-                      <th className="pb-2 text-right">W</th>
-                      <th className="pb-2 text-right">Econ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {innings.bowling.map((b, i) => (
-                      <tr key={i} className="border-b dark:border-gray-800">
-                        <td className="py-2">{typeof b.player === 'object' ? (b.player as Player).name : '-'}</td>
-                        <td className="py-2 text-right">{b.overs}</td>
-                        <td className="py-2 text-right">{b.maidens}</td>
-                        <td className="py-2 text-right">{b.runs}</td>
-                        <td className="py-2 text-right font-semibold">{b.wickets}</td>
-                        <td className="py-2 text-right">{b.economy}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardBody>
-        </Card>
-      ))}
+        return (
+          <Card key={idx} className="mb-6 overflow-hidden">
+            <CardHeader className="p-0">
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('INNINGS CLICKED');
+                  console.log('Innings clicked', inningsId);
+                  console.log('Opening innings', inningsId);
+                  console.log('innings', innings);
+                  console.log('innings.batting', battingRows);
+                  console.log('innings.bowling', bowlingRows);
+                  console.log('innings.players', (innings as { players?: unknown }).players);
+                  setOpenInnings((current) => {
+                    const next = current === inningsId ? null : inningsId;
+                    console.log('accordion state changed', { current, next });
+                    return next;
+                  });
+                }}
+                className="flex w-full cursor-pointer items-center justify-between gap-3 px-6 py-4 text-left transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-800/70"
+                aria-expanded={isOpen}
+              >
+                <h2 className="section-title mb-0 flex items-center gap-3">
+                  <span aria-hidden="true">{isOpen ? '▼' : '▶'}</span>
+                  Innings {idx + 1} — {inningsTeamName}
+                  <span className="ml-3 text-cricket-600">
+                    {innings.totalRuns}/{innings.totalWickets} ({innings.totalOvers} ov)
+                  </span>
+                </h2>
+              </button>
+            </CardHeader>
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isOpen ? 'max-h-[4000px] opacity-100' : 'max-h-0 opacity-0'
+              }`}
+            >
+              <CardBody>
+                {!scorecardLoaded && (
+                  <p className="text-sm text-gray-500">Scorecard data not available yet</p>
+                )}
+
+                {battingRows.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="mb-2 text-sm font-semibold text-gray-500">BATTING</h3>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-gray-500 dark:border-gray-700">
+                          <th className="pb-2 text-left">Batsman</th>
+                          <th className="pb-2 text-right">R</th>
+                          <th className="pb-2 text-right">B</th>
+                          <th className="pb-2 text-right">4s</th>
+                          <th className="pb-2 text-right">6s</th>
+                          <th className="pb-2 text-right">SR</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {battingRows.map((b, i) => (
+                          <tr key={i} className="border-b dark:border-gray-800">
+                            {(() => {
+                              const battingEntry = b as {
+                                player?: string | Player;
+                                runs?: number;
+                                balls?: number;
+                                fours?: number;
+                                sixes?: number;
+                                strikeRate?: number;
+                                isOut?: boolean;
+                              };
+                              const isOut = 'isOut' in battingEntry ? battingEntry.isOut : true;
+                              return (
+                                <>
+                            <td className="py-2">
+                                  {typeof battingEntry.player === 'object' ? (battingEntry.player as Player).name : '-'}
+                                  {isOut ? '' : ' *'}
+                            </td>
+                                  <td className="py-2 text-right font-semibold">{battingEntry.runs}</td>
+                                  <td className="py-2 text-right">{battingEntry.balls}</td>
+                                  <td className="py-2 text-right">{battingEntry.fours}</td>
+                                  <td className="py-2 text-right">{battingEntry.sixes}</td>
+                                  <td className="py-2 text-right">{battingEntry.strikeRate}</td>
+                                </>
+                              );
+                            })()}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {bowlingRows.length > 0 && (
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold text-gray-500">BOWLING</h3>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-gray-500 dark:border-gray-700">
+                          <th className="pb-2 text-left">Bowler</th>
+                          <th className="pb-2 text-right">O</th>
+                          <th className="pb-2 text-right">M</th>
+                          <th className="pb-2 text-right">R</th>
+                          <th className="pb-2 text-right">W</th>
+                          <th className="pb-2 text-right">Econ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bowlingRows.map((b, i) => (
+                          <tr key={i} className="border-b dark:border-gray-800">
+                            <td className="py-2">{typeof b.player === 'object' ? (b.player as Player).name : '-'}</td>
+                            <td className="py-2 text-right">{b.overs}</td>
+                            <td className="py-2 text-right">{b.maidens}</td>
+                            <td className="py-2 text-right">{b.runs}</td>
+                            <td className="py-2 text-right font-semibold">{b.wickets}</td>
+                            <td className="py-2 text-right">{b.economy}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardBody>
+            </div>
+          </Card>
+        );
+      })}
 
       {match.commentary && match.commentary.length > 0 && (
         <Card>
