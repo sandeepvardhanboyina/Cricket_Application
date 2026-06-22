@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - production
+  pull_request:
+    branches:
+      - production
+    types:
+      - closed
   workflow_dispatch:
 
 env:
@@ -12,6 +17,7 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
     strategy:
       matrix:
         include:
@@ -85,6 +91,28 @@ jobs:
           script: |
             set -e
 
+            deploy_container() {
+              local container_name="$1"
+              local image_ref="$2"
+              local host_port="$3"
+              local container_port="$4"
+              local extra_args="$5"
+
+              if sudo docker container inspect "$container_name" >/dev/null 2>&1; then
+                echo "Updating existing container: $container_name"
+                sudo docker rm -f "$container_name"
+              else
+                echo "Creating new container: $container_name"
+              fi
+
+              sudo docker run -d \
+                --name "$container_name" \
+                --restart unless-stopped \
+                -p "$host_port:$container_port" \
+                $extra_args \
+                "$image_ref"
+            }
+
             sudo apt-get update -y
             if ! command -v aws >/dev/null 2>&1; then
               sudo apt-get install -y awscli
@@ -95,21 +123,19 @@ jobs:
             sudo docker pull "$FRONTEND_IMAGE:$FRONTEND_TAG"
             sudo docker pull "$BACKEND_IMAGE:$BACKEND_TAG"
 
-            sudo docker rm -f cricket-frontend || true
-            sudo docker rm -f cricket-backend || true
+            deploy_container \
+              cricket-backend \
+              "$BACKEND_IMAGE:$BACKEND_TAG" \
+              5000 \
+              5000 \
+              "--env-file /opt/cricket-club/backend.env"
 
-            sudo docker run -d \
-              --name cricket-backend \
-              --restart unless-stopped \
-              -p 5000:5000 \
-              --env-file /opt/cricket-club/backend.env \
-              "$BACKEND_IMAGE:$BACKEND_TAG"
-
-            sudo docker run -d \
-              --name cricket-frontend \
-              --restart unless-stopped \
-              -p 3000:3000 \
-              "$FRONTEND_IMAGE:$FRONTEND_TAG"
+            deploy_container \
+              cricket-frontend \
+              "$FRONTEND_IMAGE:$FRONTEND_TAG" \
+              3000 \
+              3000 \
+              ""
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -117,4 +143,3 @@ jobs:
           BACKEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/cricket-clun-backend
           FRONTEND_TAG: frontend-build-${{ github.run_number }}-${{ github.sha }}
           BACKEND_TAG: backend-build-${{ github.run_number }}-${{ github.sha }}
-
