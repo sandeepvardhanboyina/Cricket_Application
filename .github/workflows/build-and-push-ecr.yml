@@ -117,3 +117,4 @@ jobs:
           BACKEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/cricket-clun-backend
           FRONTEND_TAG: frontend-build-${{ github.run_number }}-${{ github.sha }}
           BACKEND_TAG: backend-build-${{ github.run_number }}-${{ github.sha }}
+
