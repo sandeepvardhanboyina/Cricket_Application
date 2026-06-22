@@ -4,9 +4,14 @@ on:
   push:
     branches:
       - production
+      - Production
+    paths:
+      - '**'
+      - '.github/workflows/build-and-push-ecr.yml'
   pull_request:
     branches:
       - production
+      - Production
     types:
       - closed
   workflow_dispatch:
