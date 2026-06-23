@@ -107,8 +107,9 @@ jobs:
           script: |
             set -euo pipefail
 
-            APP_DIR="/home/ubuntu/cricket-club"
-            ENV_FILE="$APP_DIR/.env"
+            APP_DIR="/home/ubuntu/Cricket_Application"
+            ENV_FILE="$APP_DIR/backend.env"
+            DOTENV_FILE="$APP_DIR/.env"
 
             echo "Starting EC2 deployment..."
 
@@ -160,6 +161,7 @@ jobs:
                 "FRONTEND_URL=${FRONTEND_URL}" \
                 "API_URL=${API_URL}" \
                 "AUTO_APPROVE_TEAMS=${AUTO_APPROVE_TEAMS}" | sudo tee "$ENV_FILE" >/dev/null
+              sudo cp "$ENV_FILE" "$DOTENV_FILE"
             }
 
             deploy_backend() {
