@@ -209,16 +209,16 @@ jobs:
           FRONTEND_TAG: frontend-build-${{ github.run_number }}-${{ github.sha }}
           BACKEND_TAG: backend-build-${{ github.run_number }}-${{ github.sha }}
           MONGODB_URI: mongodb://cricket-mongo:27017/cricket-tournament-hub
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          JWT_EXPIRE: ${{ secrets.JWT_EXPIRE }}
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'cricket-club-dev-jwt-secret' }}
+          JWT_EXPIRE: ${{ secrets.JWT_EXPIRE || '7d' }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME || 'dummy-cloud' }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY || 'dummy-key' }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET || 'dummy-secret' }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.gmail.com' }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
+          SMTP_USER: ${{ secrets.SMTP_USER || 'dummy@example.com' }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS || 'dummy-password' }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM || 'Cricket Tournament Hub <noreply@crickethub.com>' }}
           FRONTEND_URL: "http://${{ secrets.EC2_HOST }}:3000"
           API_URL: "http://${{ secrets.EC2_HOST }}:5000"
-          AUTO_APPROVE_TEAMS: ${{ secrets.AUTO_APPROVE_TEAMS }}
+          AUTO_APPROVE_TEAMS: ${{ secrets.AUTO_APPROVE_TEAMS || 'false' }}
