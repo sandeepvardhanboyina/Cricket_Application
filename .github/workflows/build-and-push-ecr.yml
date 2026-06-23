@@ -105,7 +105,9 @@ jobs:
           script_stop: true
           envs: AWS_REGION,REGISTRY,FRONTEND_IMAGE,BACKEND_IMAGE,FRONTEND_TAG,BACKEND_TAG,MONGODB_URI,JWT_SECRET,JWT_EXPIRE,CLOUDINARY_CLOUD_NAME,CLOUDINARY_API_KEY,CLOUDINARY_API_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,EMAIL_FROM,FRONTEND_URL,API_URL,AUTO_APPROVE_TEAMS
           script: |
-            set -e
+            set -euo pipefail
+
+            echo "Starting EC2 deployment..."
 
             ensure_network() {
               if ! sudo docker network inspect cricket-club-net >/dev/null 2>&1; then
@@ -115,8 +117,11 @@ jobs:
 
             ensure_mongo() {
               if sudo docker container inspect cricket-mongo >/dev/null 2>&1; then
-                echo "Mongo container exists, starting if stopped"
-                sudo docker start cricket-mongo >/dev/null 2>&1 || true
+                echo "Mongo container exists"
+                if [ "$(sudo docker inspect -f '{{.State.Running}}' cricket-mongo)" != "true" ]; then
+                  echo "Starting existing Mongo container"
+                  sudo docker start cricket-mongo >/dev/null 2>&1 || true
+                fi
               else
                 echo "Creating Mongo container"
                 sudo docker run -d \
@@ -127,9 +132,10 @@ jobs:
                   mongo:7
               fi
 
-              until sudo docker exec cricket-mongo mongosh --quiet --eval "db.adminCommand('ping')" >/dev/null 2>&1; do
-                sleep 2
-              done
+              sudo docker network connect cricket-club-net cricket-mongo >/dev/null 2>&1 || true
+              sleep 15
+              sudo docker ps -a --filter "name=cricket-mongo"
+              sudo docker logs --tail 20 cricket-mongo || true
             }
 
             write_backend_env() {
@@ -186,6 +192,7 @@ jobs:
                 "$FRONTEND_IMAGE:$FRONTEND_TAG"
             }
 
+            echo "Logging in to ECR..."
             sudo apt-get update -y
             if ! command -v aws >/dev/null 2>&1; then
               sudo apt-get install -y awscli
@@ -201,6 +208,7 @@ jobs:
             write_backend_env
             deploy_backend
             deploy_frontend
+            echo "Deployment completed successfully."
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
