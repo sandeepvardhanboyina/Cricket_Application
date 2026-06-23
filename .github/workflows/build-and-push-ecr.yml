@@ -134,24 +134,23 @@ jobs:
 
             write_backend_env() {
               sudo mkdir -p /opt/cricket-club
-              cat <<EOF | sudo tee /opt/cricket-club/backend.env >/dev/null
-NODE_ENV=production
-PORT=5000
-MONGODB_URI=${MONGODB_URI}
-JWT_SECRET=${JWT_SECRET}
-JWT_EXPIRE=${JWT_EXPIRE}
-CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
-CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
-CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
-SMTP_HOST=${SMTP_HOST}
-SMTP_PORT=${SMTP_PORT}
-SMTP_USER=${SMTP_USER}
-SMTP_PASS=${SMTP_PASS}
-EMAIL_FROM="${EMAIL_FROM}"
-FRONTEND_URL=${FRONTEND_URL}
-API_URL=${API_URL}
-AUTO_APPROVE_TEAMS=${AUTO_APPROVE_TEAMS}
-EOF
+              printf '%s\n' \
+                "NODE_ENV=production" \
+                "PORT=5000" \
+                "MONGODB_URI=${MONGODB_URI}" \
+                "JWT_SECRET=${JWT_SECRET}" \
+                "JWT_EXPIRE=${JWT_EXPIRE}" \
+                "CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}" \
+                "CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}" \
+                "CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}" \
+                "SMTP_HOST=${SMTP_HOST}" \
+                "SMTP_PORT=${SMTP_PORT}" \
+                "SMTP_USER=${SMTP_USER}" \
+                "SMTP_PASS=${SMTP_PASS}" \
+                "EMAIL_FROM=${EMAIL_FROM}" \
+                "FRONTEND_URL=${FRONTEND_URL}" \
+                "API_URL=${API_URL}" \
+                "AUTO_APPROVE_TEAMS=${AUTO_APPROVE_TEAMS}" | sudo tee /opt/cricket-club/backend.env >/dev/null
             }
 
             deploy_backend() {
