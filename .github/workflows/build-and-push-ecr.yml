@@ -4,9 +4,14 @@ on:
   push:
     branches:
       - production
+      - Production
+    paths:
+      - '**'
+      - '.github/workflows/build-and-push-ecr.yml'
   pull_request:
     branches:
       - production
+      - Production
     types:
       - closed
   workflow_dispatch:
@@ -53,11 +58,22 @@ jobs:
 
       - name: Build and push ${{ matrix.service }} image
         run: |
-          docker build \
-            -f ${{ matrix.dockerfile }} \
-            -t ${{ steps.vars.outputs.REGISTRY }}/${{ matrix.repository }}:${{ steps.vars.outputs.IMAGE_TAG }} \
-            -t ${{ steps.vars.outputs.REGISTRY }}/${{ matrix.repository }}:${{ matrix.service }}-latest \
-            ${{ matrix.context }}
+          if [ "${{ matrix.service }}" = "frontend" ]; then
+            docker build \
+              --build-arg "NEXT_PUBLIC_API_URL=http://${{ secrets.EC2_HOST }}:5000/api" \
+              --build-arg "NEXT_PUBLIC_SITE_URL=http://${{ secrets.EC2_HOST }}:3000" \
+              --build-arg "NEXT_PUBLIC_SITE_NAME=Cricket Tournament Hub" \
+              -f ${{ matrix.dockerfile }} \
+              -t ${{ steps.vars.outputs.REGISTRY }}/${{ matrix.repository }}:${{ steps.vars.outputs.IMAGE_TAG }} \
+              -t ${{ steps.vars.outputs.REGISTRY }}/${{ matrix.repository }}:${{ matrix.service }}-latest \
+              ${{ matrix.context }}
+          else
+            docker build \
+              -f ${{ matrix.dockerfile }} \
+              -t ${{ steps.vars.outputs.REGISTRY }}/${{ matrix.repository }}:${{ steps.vars.outputs.IMAGE_TAG }} \
+              -t ${{ steps.vars.outputs.REGISTRY }}/${{ matrix.repository }}:${{ matrix.service }}-latest \
+              ${{ matrix.context }}
+          fi
           docker push ${{ steps.vars.outputs.REGISTRY }}/${{ matrix.repository }}:${{ steps.vars.outputs.IMAGE_TAG }}
           docker push ${{ steps.vars.outputs.REGISTRY }}/${{ matrix.repository }}:${{ matrix.service }}-latest
 
@@ -87,32 +103,101 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script_stop: true
-          envs: AWS_REGION,REGISTRY,FRONTEND_IMAGE,BACKEND_IMAGE,FRONTEND_TAG,BACKEND_TAG
+          envs: AWS_REGION,REGISTRY,FRONTEND_IMAGE,BACKEND_IMAGE,FRONTEND_TAG,BACKEND_TAG,MONGODB_URI,JWT_SECRET,JWT_EXPIRE,CLOUDINARY_CLOUD_NAME,CLOUDINARY_API_KEY,CLOUDINARY_API_SECRET,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,EMAIL_FROM,FRONTEND_URL,API_URL,AUTO_APPROVE_TEAMS
           script: |
-            set -e
+            set -euo pipefail
 
-            deploy_container() {
-              local container_name="$1"
-              local image_ref="$2"
-              local host_port="$3"
-              local container_port="$4"
-              local extra_args="$5"
+            APP_DIR="/home/ubuntu/Cricket_Application"
+            ENV_FILE="$APP_DIR/backend.env"
+            DOTENV_FILE="$APP_DIR/.env"
 
-              if sudo docker container inspect "$container_name" >/dev/null 2>&1; then
-                echo "Updating existing container: $container_name"
-                sudo docker rm -f "$container_name"
+            echo "Starting EC2 deployment..."
+
+            ensure_network() {
+              if ! sudo docker network inspect cricket-club-net >/dev/null 2>&1; then
+                sudo docker network create cricket-club-net
+              fi
+            }
+
+            ensure_mongo() {
+              if sudo docker container inspect cricket-mongo >/dev/null 2>&1; then
+                echo "Mongo container exists"
+                if [ "$(sudo docker inspect -f '{{.State.Running}}' cricket-mongo)" != "true" ]; then
+                  echo "Starting existing Mongo container"
+                  sudo docker start cricket-mongo >/dev/null 2>&1 || true
+                fi
               else
-                echo "Creating new container: $container_name"
+                echo "Creating Mongo container"
+                sudo docker run -d \
+                  --name cricket-mongo \
+                  --restart unless-stopped \
+                  --network cricket-club-net \
+                  -v cricket_mongo_data:/data/db \
+                  mongo:7
+              fi
+
+              sudo docker network connect cricket-club-net cricket-mongo >/dev/null 2>&1 || true
+              sleep 15
+              sudo docker ps -a --filter "name=cricket-mongo"
+              sudo docker logs --tail 20 cricket-mongo || true
+            }
+
+            write_backend_env() {
+              sudo mkdir -p "$APP_DIR"
+              printf '%s\n' \
+                "NODE_ENV=production" \
+                "PORT=5000" \
+                "MONGODB_URI=${MONGODB_URI}" \
+                "JWT_SECRET=${JWT_SECRET}" \
+                "JWT_EXPIRE=${JWT_EXPIRE}" \
+                "CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}" \
+                "CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}" \
+                "CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}" \
+                "SMTP_HOST=${SMTP_HOST}" \
+                "SMTP_PORT=${SMTP_PORT}" \
+                "SMTP_USER=${SMTP_USER}" \
+                "SMTP_PASS=${SMTP_PASS}" \
+                "EMAIL_FROM=${EMAIL_FROM}" \
+                "FRONTEND_URL=${FRONTEND_URL}" \
+                "API_URL=${API_URL}" \
+                "AUTO_APPROVE_TEAMS=${AUTO_APPROVE_TEAMS}" | sudo tee "$ENV_FILE" >/dev/null
+              sudo cp "$ENV_FILE" "$DOTENV_FILE"
+            }
+
+            deploy_backend() {
+              if sudo docker container inspect cricket-backend >/dev/null 2>&1; then
+                echo "Updating existing container: cricket-backend"
+                sudo docker rm -f cricket-backend
+              else
+                echo "Creating new container: cricket-backend"
               fi
 
               sudo docker run -d \
-                --name "$container_name" \
+                --name cricket-backend \
                 --restart unless-stopped \
-                -p "$host_port:$container_port" \
-                $extra_args \
-                "$image_ref"
+                --network cricket-club-net \
+                -p 5000:5000 \
+                --env-file "$ENV_FILE" \
+                "$BACKEND_IMAGE:$BACKEND_TAG"
             }
 
+            deploy_frontend() {
+              if sudo docker container inspect cricket-frontend >/dev/null 2>&1; then
+                echo "Updating existing container: cricket-frontend"
+                sudo docker rm -f cricket-frontend
+              else
+                echo "Creating new container: cricket-frontend"
+              fi
+
+              sudo docker run -d \
+                --name cricket-frontend \
+                --restart unless-stopped \
+                --network cricket-club-net \
+                -p 3000:3000 \
+                "$FRONTEND_IMAGE:$FRONTEND_TAG"
+            }
+
+            echo "Logging in to ECR..."
             sudo apt-get update -y
             if ! command -v aws >/dev/null 2>&1; then
               sudo apt-get install -y awscli
@@ -123,19 +208,12 @@ jobs:
             sudo docker pull "$FRONTEND_IMAGE:$FRONTEND_TAG"
             sudo docker pull "$BACKEND_IMAGE:$BACKEND_TAG"
 
-            deploy_container \
-              cricket-backend \
-              "$BACKEND_IMAGE:$BACKEND_TAG" \
-              5000 \
-              5000 \
-              "--env-file /opt/cricket-club/backend.env"
-
-            deploy_container \
-              cricket-frontend \
-              "$FRONTEND_IMAGE:$FRONTEND_TAG" \
-              3000 \
-              3000 \
-              ""
+            ensure_network
+            ensure_mongo
+            write_backend_env
+            deploy_backend
+            deploy_frontend
+            echo "Deployment completed successfully."
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -143,3 +221,17 @@ jobs:
           BACKEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/cricket-clun-backend
           FRONTEND_TAG: frontend-build-${{ github.run_number }}-${{ github.sha }}
           BACKEND_TAG: backend-build-${{ github.run_number }}-${{ github.sha }}
+          MONGODB_URI: mongodb://cricket-mongo:27017/cricket-tournament-hub
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'cricket-club-dev-jwt-secret' }}
+          JWT_EXPIRE: ${{ secrets.JWT_EXPIRE || '7d' }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME || 'dummy-cloud' }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY || 'dummy-key' }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET || 'dummy-secret' }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.gmail.com' }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
+          SMTP_USER: ${{ secrets.SMTP_USER || 'dummy@example.com' }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS || 'dummy-password' }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM || 'Cricket Tournament Hub <noreply@crickethub.com>' }}
+          FRONTEND_URL: "http://${{ secrets.EC2_HOST }}:3000"
+          API_URL: "http://${{ secrets.EC2_HOST }}:5000"
+          AUTO_APPROVE_TEAMS: ${{ secrets.AUTO_APPROVE_TEAMS || 'false' }}
